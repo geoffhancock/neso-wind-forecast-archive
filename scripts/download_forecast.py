@@ -42,8 +42,8 @@ def get_drive_service():
     return build("drive", "v3", credentials=creds)
 
 
-def upload_to_drive(service, folder_id, local_path, filename):
-    """Upload a file to a Google Drive folder."""
+def upload_to_drive(service, folder_id, local_path, filename, owner_email="geoff@watttime.org"):
+    """Upload a file to a Google Drive folder, then transfer ownership."""
     from googleapiclient.http import MediaFileUpload
 
     file_metadata = {
@@ -53,9 +53,30 @@ def upload_to_drive(service, folder_id, local_path, filename):
     media = MediaFileUpload(str(local_path), mimetype="text/csv")
     uploaded = (
         service.files()
-        .create(body=file_metadata, media_body=media, fields="id,name,size")
+        .create(
+            body=file_metadata,
+            media_body=media,
+            fields="id,name,size",
+            supportsAllDrives=True,
+        )
         .execute()
     )
+
+    # Transfer ownership so file counts against user's quota, not service account's
+    try:
+        service.permissions().create(
+            fileId=uploaded["id"],
+            body={
+                "type": "user",
+                "role": "owner",
+                "emailAddress": owner_email,
+            },
+            transferOwnership=True,
+        ).execute()
+    except Exception as e:
+        # If ownership transfer fails, at least the file is shared
+        print(f"  Warning: could not transfer ownership: {e}")
+
     size_mb = int(uploaded.get("size", 0)) / (1024 * 1024)
     print(f"  Uploaded: {uploaded['name']} ({size_mb:.1f} MB)")
 
