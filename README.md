@@ -1,20 +1,19 @@
 # NESO Wind Forecast Archive
 
-Automated daily archive of NESO's **14 Days Ahead Operational Metered Wind Forecasts**
-to Google Drive.
+Automated daily archive of NESO's **14 Days Ahead Operational Metered Wind Forecasts**.
 
 ## Why
 
 NESO publishes per-windfarm, half-hourly wind generation forecasts updated 8 times daily,
 but only as a rolling snapshot (no historical archive). This workflow archives the forecast
-twice daily for use in curtailment prediction model training and backtesting.
+daily for use in curtailment prediction model training and backtesting.
 
 ## What's archived
 
-- **Windfarm-level forecast** (~16 MB/snapshot): per-farm capacity, forecast MW, region
-- **National-level forecast** (~46 KB/snapshot): aggregate wind forecast
+- **Windfarm-level forecast** (~3 MB gzipped): per-farm capacity, forecast MW, region
+- **National-level forecast** (~10 KB gzipped): aggregate wind forecast
 
-Files are uploaded to a Google Drive folder shared with the team.
+Files are gzip-compressed and committed to the `data/` directory.
 
 ## Source
 
@@ -22,22 +21,22 @@ Files are uploaded to a Google Drive folder shared with the team.
 - Dataset ID: `ca6fc361-9099-4ab2-ac02-c959431e84bc`
 - License: NESO Open Data Licence
 
-## Setup
+## Schedule
 
-### GitHub Secrets required
+GitHub Actions runs daily at 06:00 UTC.
 
-| Secret | Value |
-|--------|-------|
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | Full JSON contents of the service account key file |
-| `GDRIVE_SHARE_EMAIL` | Email to share the Drive folder with (e.g. `geoff@watttime.org`) |
+## Storage
 
-### Schedule
+~3 MB/day gzipped = ~1.1 GB/year. GitHub recommends repos under 1 GB.
+If the repo grows too large, migrate to Git LFS or reduce to weekly snapshots
+(consecutive forecasts overlap by 13+ days, so daily is somewhat redundant).
 
-GitHub Actions runs at 06:00 and 18:00 UTC daily. Can also be triggered manually
-from the Actions tab.
+## Reading the data
 
-### First run
+```python
+import gzip
+import pandas as pd
 
-On first run, the script creates a Google Drive folder and shares it with the
-configured email. The folder ID is saved to `data/gdrive_folder_id.txt` and
-committed to the repo for subsequent runs.
+with gzip.open("data/windfarm_forecast_2026-04-11_0600.csv.gz", "rt") as f:
+    df = pd.read_csv(f)
+```
