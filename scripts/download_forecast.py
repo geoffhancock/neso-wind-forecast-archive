@@ -20,9 +20,9 @@ RESOURCE_API = (
     "?id=14-days-ahead-operational-metered-wind-forecasts"
 )
 
-FOLDER_NAME = "NESO 14day wind fc (auto-archive)"
-SHARE_EMAIL = os.environ.get("GDRIVE_SHARE_EMAIL", "geoff@watttime.org")
-STATE_FILE = Path("data/gdrive_folder_id.txt")
+GDRIVE_FOLDER_ID = os.environ.get(
+    "GDRIVE_FOLDER_ID", "1PGsCwprOx9poUczvM4KTFLrHtxyYzrmg"
+)
 
 
 def get_drive_service():
@@ -40,48 +40,6 @@ def get_drive_service():
         scopes=["https://www.googleapis.com/auth/drive"],
     )
     return build("drive", "v3", credentials=creds)
-
-
-def get_or_create_folder(service):
-    """Get existing folder ID from state file, or create a new folder."""
-    # Check if we already have a folder ID
-    if STATE_FILE.exists():
-        folder_id = STATE_FILE.read_text().strip()
-        # Verify it still exists
-        try:
-            service.files().get(fileId=folder_id, fields="id,name").execute()
-            print(f"Using existing folder: {folder_id}")
-            return folder_id
-        except Exception:
-            print("Stored folder ID is invalid, creating new folder")
-
-    # Create folder
-    folder_metadata = {
-        "name": FOLDER_NAME,
-        "mimeType": "application/vnd.google-apps.folder",
-    }
-    folder = service.files().create(body=folder_metadata, fields="id").execute()
-    folder_id = folder["id"]
-    print(f"Created folder: {folder_id}")
-
-    # Share with user
-    permission = {
-        "type": "user",
-        "role": "writer",
-        "emailAddress": SHARE_EMAIL,
-    }
-    service.permissions().create(
-        fileId=folder_id,
-        body=permission,
-        sendNotificationEmail=True,
-    ).execute()
-    print(f"Shared folder with {SHARE_EMAIL}")
-
-    # Save folder ID for future runs
-    STATE_FILE.parent.mkdir(exist_ok=True)
-    STATE_FILE.write_text(folder_id)
-
-    return folder_id
 
 
 def upload_to_drive(service, folder_id, local_path, filename):
@@ -119,14 +77,15 @@ def get_download_urls():
 
 
 def main():
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC)
     timestamp = now.strftime("%Y-%m-%d_%H%M")
 
     print(f"NESO Wind Forecast Archive - {timestamp} UTC")
 
     # Set up Drive
     service = get_drive_service()
-    folder_id = get_or_create_folder(service)
+    folder_id = GDRIVE_FOLDER_ID
+    print(f"Uploading to Drive folder: {folder_id}")
 
     # Get download URLs
     urls = get_download_urls()
