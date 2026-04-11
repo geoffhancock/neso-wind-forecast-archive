@@ -2,8 +2,9 @@ name: Cache NESO Wind Forecast
 
 on:
   schedule:
-    # Run once daily at 6:00 AM UTC (save repo space)
-    - cron: '0 6 * * *'
+    # Run 8x daily (every 3 hours) to match NESO's 8x/day update cadence.
+    # No historical archive exists, so every missed snapshot is lost forever.
+    - cron: '0 0,3,6,9,12,15,18,21 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -31,6 +32,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No new data to commit"
           else
-            git commit -m "Archive NESO wind forecast $(date -u +%Y-%m-%d)"
+            git commit -m "Archive NESO wind forecast $(date -u +%Y-%m-%dT%H%M)Z"
             git push
           fi
